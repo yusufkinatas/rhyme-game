@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Kafiye Oyunu</title>
+<style>
+  :root{
+    --bg:#0e0b1a; --panel:#1d1636; --panel2:#251c44; --line:#3a2f63;
+    --text:#f2eefb; --muted:#a99fce; --accent:#8b5cf6; --accent2:#ec4899; --ball:#fbbf24;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    background:radial-gradient(1200px 800px at 50% -10%,#241a45 0%,var(--bg) 60%);
+    color:var(--text);display:flex;flex-direction:column;align-items:center;min-height:100%;overflow-x:hidden;
+  }
+  #app{width:100%;max-width:560px;padding:16px;flex:1;display:flex;flex-direction:column;}
+  h1{font-size:30px;margin:8px 0 2px;text-align:center;letter-spacing:-.5px;}
+  h1 .em{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .sub{color:var(--muted);text-align:center;margin:0 0 18px;font-size:14px;}
+  .screen{flex:1;display:flex;flex-direction:column;}
+  .hidden{display:none !important;}
+
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px;}
+  .label{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;}
+  .opts{display:flex;flex-wrap:wrap;gap:8px;}
+  .opt{flex:1 1 auto;min-width:64px;text-align:center;padding:11px 10px;border-radius:12px;background:#120e24;border:1px solid var(--line);color:var(--text);font-size:14px;cursor:pointer;transition:.15s;}
+  .opt small{display:block;color:var(--muted);font-size:11px;margin-top:2px;}
+  .opt.sel{border-color:var(--accent);background:linear-gradient(180deg,rgba(139,92,246,.28),rgba(236,72,153,.18));box-shadow:0 0 0 1px var(--accent) inset;}
+  .btn{display:block;width:100%;padding:16px;border:none;border-radius:14px;font-size:18px;font-weight:700;color:#fff;cursor:pointer;background:linear-gradient(90deg,var(--accent),var(--accent2));box-shadow:0 8px 24px rgba(139,92,246,.35);}
+  .btn.sec{background:#241c44;border:1px solid var(--line);box-shadow:none;font-weight:600;font-size:16px;}
+  .btn:active{transform:translateY(1px);}
+
+  #gameScreen{align-items:center;}
+  .topbar{width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;color:var(--muted);font-size:13px;}
+  .topbar b{color:var(--text);}
+  #stage{position:relative;width:100%;height:380px;overflow:hidden;border-radius:20px;background:linear-gradient(180deg,#120d24,#0c0819);border:1px solid var(--line);
+    -webkit-mask-image:linear-gradient(180deg,transparent,#000 16%,#000 84%,transparent);mask-image:linear-gradient(180deg,transparent,#000 16%,#000 84%,transparent);}
+  #marker{position:absolute;left:0;right:0;height:64px;top:calc(45% - 32px);background:linear-gradient(90deg,rgba(139,92,246,.10),rgba(236,72,153,.10));border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06);pointer-events:none;}
+  #stack{position:absolute;left:0;right:0;top:0;will-change:transform;transition:transform .18s cubic-bezier(.2,.75,.25,1);}
+  .bar{height:64px;display:flex;align-items:center;padding:0 10px;gap:6px;opacity:.5;transition:opacity .2s;}
+  .bar.active{opacity:1;}
+  .cell{flex:1;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600;color:var(--text);background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);}
+  .cell.word{font-size:19px;font-weight:800;}
+  .barnum{width:20px;text-align:center;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;}
+  #ball{position:absolute;width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,var(--ball) 55%,#d97706);box-shadow:0 0 18px rgba(251,191,36,.7);will-change:transform;left:0;top:0;}
+  #countin{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:120px;font-weight:800;color:#fff;text-shadow:0 0 40px rgba(139,92,246,.8);pointer-events:none;}
+  .legend{margin-top:10px;color:var(--muted);font-size:12px;text-align:center;line-height:1.5;}
+  .controls{display:flex;gap:10px;width:100%;margin-top:12px;}
+  .controls .btn{margin:0;}
+  .stat{display:flex;justify-content:space-between;padding:12px 4px;border-bottom:1px solid var(--line);font-size:16px;}
+  .stat b{font-size:20px;}
+  .stat:last-child{border-bottom:none;}
+  .credit{color:var(--muted);font-size:11px;text-align:center;margin-top:6px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>Kafiye <span class="em">Oyunu</span></h1>
+  <p class="sub">Bir ritim seç, top zıpladıkça kafiyeyi son vuruşta yakala.</p>
+
+  <!-- SETUP -->
+  <div id="setupScreen" class="screen">
+    <div class="card">
+      <div class="label">Seviye</div>
+      <div class="opts" id="levelOpts"></div>
+    </div>
+    <div class="card">
+      <div class="label">Ritim (beat)</div>
+      <div class="opts" id="beatOpts"></div>
+    </div>
+    <div class="card">
+      <div class="label">Uzunluk (bar)</div>
+      <div class="opts" id="barOpts"></div>
+    </div>
+    <button class="btn" id="startBtn">Başla ▸</button>
+    <div class="credit">Ritimler: Frequently Asked Music</div>
+  </div>
+
+  <!-- GAME -->
+  <div id="gameScreen" class="screen hidden">
+    <div class="topbar">
+      <div>Bar <b id="barLabel">–</b> / <span id="barTotal">–</span></div>
+      <div><b id="beatLabel">–</b></div>
+      <div><b id="bpmLabel">–</b> BPM</div>
+    </div>
+    <div id="stage">
+      <div id="marker"></div>
+      <div id="stack"></div>
+      <div id="ball"></div>
+      <div id="countin" class="hidden"></div>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="controls">
+      <button class="btn sec" id="stopBtn">■ Bitir</button>
+    </div>
+  </div>
+
+  <!-- END -->
+  <div id="endScreen" class="screen hidden">
+    <div class="card">
+      <div class="label">Seans özeti</div>
+      <div class="stat"><span>Süre</span><b id="sDur">–</b></div>
+      <div class="stat"><span>Rap yaptığın bar</span><b id="sBars">–</b></div>
+      <div class="stat"><span>Ritim</span><b id="sBeat">–</b></div>
+      <div class="stat"><span>Seviye</span><b id="sLevel">–</b></div>
+    </div>
+    <button class="btn" id="againSame">↻ Aynı kelimelerle tekrar</button>
+    <div style="height:10px"></div>
+    <button class="btn sec" id="againNew">✦ Yeni kelimelerle tekrar</button>
+    <div style="height:10px"></div>
+    <button class="btn sec" id="backBtn">‹ Ayarlara dön</button>
+  </div>
+</div>
+
+<audio id="track" preload="auto" crossorigin="anonymous"></audio>
+
+<script>
+"use strict";
+
+/* =========================================================
+   Turkish rhyme groups (kafiye aileleri)
+   ========================================================= */
+const RHYME_GROUPS = {
+  "-an":  ["zaman","duman","yalan","orman","insan","vatan","meydan","aslan","liman","derman","hayran","tufan","kervan","fidan","roman","yaman"],
+  "-ar":  ["rüzgar","bahar","pınar","damar","çınar","mezar","nazar","kenar","duvar","diyar","pazar","kumar","karar","zarar"],
+  "-ek":  ["yürek","gerçek","çiçek","dilek","emek","felek","melek","ekmek","direk","örnek","istek","petek","kelebek","bebek"],
+  "-ak":  ["toprak","yaprak","sokak","uzak","tuzak","bayrak","kaynak","dudak","şafak","durak","batak","kaçak","çırak","ırak","parmak","konak"],
+  "-et":  ["cennet","hasret","servet","kıymet","rahmet","cesaret","hikmet","zahmet","gurbet","sohbet","kuvvet","minnet","ibret","hürmet","nöbet"],
+  "-at":  ["hayat","kanat","sanat","inat","saat","murat","fırsat","rahat","hasat","sıfat"],
+  "-ir":  ["şiir","şehir","zehir","demir","fikir","nehir","sihir","esir","vezir","takdir","tedbir","tesir"],
+  "-ır":  ["sabır","kahır","hatır","satır","hazır","bakır","çadır","ağır","çakır"],
+  "-ur":  ["yağmur","huzur","gurur","çamur","çukur","kusur","uğur","hamur","mahmur","mağrur","şuur"],
+  "-üm":  ["ölüm","çözüm","bölüm","üzüm","düğüm","dönüm","sürüm","hüküm","ölçüm","gülüm"],
+  "-el":  ["güzel","temel","özel","engel","bedel","gazel","emel","ecel","evvel","tünel"],
+  "-ık":  ["açık","ışık","aşık","kırık","artık","balık","yanık","kaşık","kayık","yırtık","tanık","sanık","kaçık","atık"],
+  "-un":  ["oyun","uzun","yorgun","kurşun","vurgun","tutkun","durgun","boyun","olgun","sorun","uygun","koyun"],
+  "-ış":  ["bakış","akış","barış","yarış","alkış","çıkış","kalkış","yağış","atış","varış","satış","nakış","kamış"],
+  "-ce":  ["gece","hece","ince","nice","bilmece","eğlence","düşünce","işkence","güvence"],
+  "-aş":  ["savaş","yavaş","telaş","kumaş","arkadaş","yoldaş","sırdaş","adaş","maaş"]
+};
+const GROUP_KEYS = Object.keys(RHYME_GROUPS);
+const GROUP_COLORS = ["#8b5cf6","#ec4899","#34d399","#38bdf8","#f59e0b","#f472b6","#a3e635","#22d3ee","#fb7185","#c084fc","#fbbf24","#2dd4bf","#f97316","#60a5fa","#e879f9","#4ade80"];
+const colorForGroup = (gk) => GROUP_COLORS[GROUP_KEYS.indexOf(gk) % GROUP_COLORS.length];
+
+/* =========================================================
+   Beats (real instrumentals, metadata from The Rhyme Game)
+   dropMs = where the beat drops; that's where bar 1 begins.
+   ========================================================= */
+const BEATS = [
+  {id:"beefer",  title:"Beefer",      mood:"Klasik", bpm:85,  dropMs:12200, endMs:205300, file:"beats/Beefer.mp3"},
+  {id:"dangers", title:"Dangers",     mood:"Klasik", bpm:90,  dropMs:10600, endMs:181200, file:"beats/Dangers-of-Hip-Hop.mp3"},
+  {id:"hot",     title:"Hot Hip Hop", mood:"Sert",   bpm:95,  dropMs:15200, endMs:166700, file:"beats/Hot-Hip-Hop.mp3"},
+  {id:"laid",    title:"Laid Back",   mood:"Sert",   bpm:130, dropMs:14800, endMs:221600, file:"beats/Laid-Back.mp3"},
+];
+
+const LEVELS = [
+  {id:"beginner",    label:"Başlangıç", desc:"Tüm kelimeler",   scheme:"AABB", fill:"all"},
+  {id:"intermediate",label:"Orta",      desc:"1. kafiye açık",  scheme:"AABB", fill:"first"},
+  {id:"advanced",    label:"İleri",     desc:"Son kelime açık", scheme:"AABB", fill:"last"},
+  {id:"expert",      label:"Uzman",     desc:"AAAA · son kelime",scheme:"AAAA",fill:"last"},
+];
+const BARCOUNTS = [8,16,32];
+
+const state = { level: LEVELS[0], beat: BEATS[0], bars: 16, pattern: null };
+
+/* =========================================================
+   Pattern builder
+   ========================================================= */
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function buildPattern(totalBars, scheme){
+  const slots = new Array(totalBars).fill(null);
+  const order = shuffle(GROUP_KEYS);
+  const pools = {}; let gi = 0;
+  const nextGroup = () => order[(gi++) % order.length];
+  function takeWord(gk){ if(!pools[gk]||pools[gk].length===0) pools[gk]=shuffle(RHYME_GROUPS[gk]); return pools[gk].pop(); }
+  const step = (scheme === "AAAA") ? 4 : 2;
+  for(let b=0;b<totalBars;b+=step){
+    const gk = nextGroup();
+    for(let k=0;k<step && b+k<totalBars;k++)
+      slots[b+k] = { group:gk, word:takeWord(gk), role:k===0?"keyword":"rhyme", color:colorForGroup(gk) };
+  }
+  return slots;
+}
+function isVisible(role, fill){
+  if(fill==="all")   return true;
+  if(fill==="first") return role==="keyword";
+  if(fill==="last")  return role==="rhyme";
+  return false;
+}
+
+/* =========================================================
+   Engine — synced to the audio track's own clock
+   ========================================================= */
+const COUNT_IN = 4, ROW_H = 64;
+const els = {};
+let track;
+let timer = 0, running = false;
+let secPerBeat = 0, startOffsetSec = 0, endSec = 0, lastBarIndex = -1;
+
+const $ = (id) => document.getElementById(id);
+
+function renderStack(){
+  els.stack.innerHTML = "";
+  state.pattern.forEach((slot,i)=>{
+    const bar=document.createElement("div"); bar.className="bar";
+    const num=document.createElement("div"); num.className="barnum"; num.textContent=i+1; bar.appendChild(num);
+    for(let c=0;c<4;c++){
+      const cell=document.createElement("div"); cell.className="cell";
+      if(c===3 && slot){
+        cell.classList.add("word");
+        if(isVisible(slot.role,state.level.fill)){ cell.textContent=slot.word; cell.style.color=slot.color; }
+        else { cell.textContent="· · ·"; cell.style.color="rgba(255,255,255,.25)"; }
+        cell.style.borderColor=slot.color+"55"; cell.style.background=slot.color+"12";
+      }
+      bar.appendChild(cell);
+    }
+    els.stack.appendChild(bar);
+  });
+}
+function colCenters(){
+  const stageW=els.stage.clientWidth, padL=10+20+6, padR=10, gap=6;
+  const cw=(stageW-padL-padR-gap*3)/4, centers=[];
+  for(let c=0;c<4;c++) centers.push(padL+c*(cw+gap)+cw/2);
+  return centers;
+}
+
+async function startGame(){
+  const b = state.beat;
+  state.bpm = b.bpm;
+  secPerBeat = 60 / b.bpm;
+  const dropSec = b.dropMs/1000;
+  endSec = b.endMs/1000;
+  // bars begin exactly at the drop; the 4-beat count-in fills the pickup before it
+  startOffsetSec = Math.max(0, dropSec - COUNT_IN*secPerBeat);
+
+  renderStack();
+  $("barTotal").textContent = state.bars;
+  $("beatLabel").textContent = b.title;
+  $("bpmLabel").textContent = b.bpm;
+  els.legend.innerHTML = legendText();
+  show("gameScreen");
+  els.countin.classList.remove("hidden");
+
+  // load + play + seek, all kicked off within the click gesture
+  if(track.src.indexOf(b.file) === -1){ track.src = b.file; track.load(); }
+  track.volume = 1;
+  try{
+    if(track.readyState < 1){
+      await new Promise(res=>track.addEventListener("loadedmetadata",res,{once:true}));
+    }
+    await track.play();                  // start playback within the gesture
+    track.currentTime = startOffsetSec;  // then seek to just before the drop
+    const seeked = await new Promise(res=>{
+      let done=false; const ok=()=>{ if(!done){done=true;res(true);} };
+      track.addEventListener("seeked", ok, {once:true});
+      setTimeout(()=>{ if(!done){done=true;res(false);} }, 700);
+    });
+    // If the host can't serve byte ranges, the seek won't hold and the intro
+    // would play as dead time. Anchor timing to the current position so the
+    // count-in starts immediately instead.
+    if(!seeked || track.currentTime < startOffsetSec - 2){
+      startOffsetSec = Math.max(0, track.currentTime);
+    }
+  }catch(err){ console.warn("audio play/seek issue", err); }
+
+  running = true; lastBarIndex = -1;
+  // A timer (not requestAnimationFrame) drives rendering: rAF is paused
+  // whenever the tab is hidden, but an audible tab keeps timers running,
+  // so the visuals stay in sync with the beat even in the background.
+  clearInterval(timer);
+  timer = setInterval(loop, 16);
+}
+
+function loop(){
+  if(!running) return;
+  const t = track.currentTime;
+  const elapsedBeats = (t - startOffsetSec) / secPerBeat;
+
+  // count-in overlay
+  if(elapsedBeats < COUNT_IN){
+    const n = COUNT_IN - Math.floor(Math.max(0,elapsedBeats));
+    els.countin.textContent = elapsedBeats < 0 ? "Hazır?" : String(n);
+  } else els.countin.classList.add("hidden");
+
+  const songBeat = elapsedBeats - COUNT_IN;
+  if(songBeat >= state.bars*4 || t >= endSec || track.ended){ endGame(true); return; }
+
+  const activeBar = Math.max(0, Math.floor(songBeat/4));
+  if(activeBar !== lastBarIndex && songBeat >= 0){
+    lastBarIndex = activeBar;
+    [...els.stack.children].forEach((bar,i)=> bar.classList.toggle("active", i===activeBar));
+    $("barLabel").textContent = Math.min(activeBar+1, state.bars);
+  }
+
+  // Step the grid one whole bar at a time (snap on each bar) so it is always
+  // clear which bar you are in, instead of a continuous smooth scroll.
+  const markerCenter = els.stage.clientHeight*0.45;
+  els.stack.style.transform = `translateY(${markerCenter - activeBar*ROW_H - ROW_H/2}px)`;
+
+  const centers = colCenters();
+  const gb = Math.max(0, elapsedBeats);
+  const col = Math.floor(gb)%4, nextCol=(col+1)%4, frac=gb-Math.floor(gb);
+  const bx = centers[col] + (centers[nextCol]-centers[col])*frac;
+  const by = (markerCenter+10) - 30*Math.sin(Math.PI*frac);
+  els.ball.style.transform = `translate(${bx-15}px, ${by-15}px)`;
+}
+
+function endGame(finished){
+  running = false;
+  clearInterval(timer);
+  try{ track.pause(); }catch(e){}
+  const barsRapped = finished ? state.bars : Math.max(0, lastBarIndex>=0 ? lastBarIndex+1 : 0);
+  $("sDur").textContent  = Math.round(barsRapped*4*secPerBeat) + " sn";
+  $("sBars").textContent = barsRapped + " bar";
+  $("sBeat").textContent = state.beat.title;
+  $("sLevel").textContent= state.level.label;
+  show("endScreen");
+}
+
+function legendText(){
+  const f=state.level.fill, scheme=state.level.scheme;
+  let msg;
+  if(f==="all")        msg="Ekrandaki kelimeleri son vuruşta söyle. İlk üç vuruşu doldur.";
+  else if(f==="first") msg="İlk kelime açık. Ona kafiyeli bir kelimeyle bar'ı kapat.";
+  else if(f==="last")  msg="Hedef kelime açık. Ona doğru bir dize kur, son vuruşta yakala.";
+  else                 msg="Serbest akış. Kendi kafiyeni bul.";
+  return `<b style="color:var(--text)">${scheme}</b> · ${msg}`;
+}
+
+/* =========================================================
+   Screens & options
+   ========================================================= */
+function show(which){ ["setupScreen","gameScreen","endScreen"].forEach(s=> $(s).classList.toggle("hidden", s!==which)); }
+function markSel(container,el){ [...container.children].forEach(c=>c.classList.remove("sel")); el.classList.add("sel"); }
+
+function buildOptions(){
+  const lo=$("levelOpts");
+  LEVELS.forEach(l=>{ const el=document.createElement("div"); el.className="opt"; el.innerHTML=`${l.label}<small>${l.desc}</small>`;
+    el.onclick=()=>{ state.level=l; markSel(lo,el); }; lo.appendChild(el); if(l===state.level) el.classList.add("sel"); });
+
+  const bo=$("beatOpts");
+  BEATS.forEach(b=>{ const el=document.createElement("div"); el.className="opt"; el.innerHTML=`${b.title}<small>${b.bpm} BPM · ${b.mood}</small>`;
+    el.onclick=()=>{ state.beat=b; markSel(bo,el); track.src=b.file; track.load(); };
+    bo.appendChild(el); if(b===state.beat) el.classList.add("sel"); });
+
+  const bao=$("barOpts");
+  BARCOUNTS.forEach(n=>{ const el=document.createElement("div"); el.className="opt"; el.textContent=n;
+    el.onclick=()=>{ state.bars=n; markSel(bao,el); }; bao.appendChild(el); if(n===state.bars) el.classList.add("sel"); });
+}
+
+window.addEventListener("DOMContentLoaded", ()=>{
+  ["stack","stage","ball","countin","legend"].forEach(id=> els[id]=$(id));
+  track = $("track");
+  buildOptions();
+  track.src = state.beat.file; track.load(); // preload default so first play is instant
+
+  $("startBtn").onclick = ()=>{ state.pattern = buildPattern(state.bars, state.level.scheme); startGame(); };
+  $("stopBtn").onclick  = ()=> endGame(false);
+  $("againSame").onclick= ()=> startGame();
+  $("againNew").onclick = ()=>{ state.pattern = buildPattern(state.bars, state.level.scheme); startGame(); };
+  $("backBtn").onclick  = ()=>{ try{track.pause();}catch(e){} show("setupScreen"); };
+});
+</script>
+</body>
+</html>
