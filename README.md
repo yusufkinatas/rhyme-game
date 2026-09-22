@@ -4,6 +4,10 @@ A simple Turkish freestyle-rap practice tool, inspired by The Rhyme Game.
 Pick a beat, follow the bouncing ball, and land the rhyme word on the 4th beat
 of each bar. Turkish rhyme families are color-matched so you can see the scheme.
 
+## Live
+
+https://rhyme.yusuf.app (Vercel, auto-deploys from `main`)
+
 ## Run
 
 The game seeks each track to its musical drop, which needs a server that
