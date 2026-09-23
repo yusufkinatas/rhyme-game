@@ -31,13 +31,17 @@ just starts the count-in immediately instead of skipping to the drop.
    - Uzman: AAAA (four bars, one rhyme sound), target shown
 2. **Ritim** picks the beat (each has its own BPM).
 3. **Uzunluk** sets the length in bars.
-4. Hit **Başla**. A 4-beat count-in leads into the drop, then each bar scrolls
+4. **Dizeler** shows or hides the full verse line under each bar. You can also
+   toggle it mid-game. Hidden rhyme words stay hidden in the line too.
+5. Hit **Başla**. A 4-beat count-in leads into the drop, then each bar scrolls
    under the marker. Fill the first three beats with anything; land the shown
    rhyme word on the fourth. The game does not listen to or score you.
 
 ## Files
 
-- `index.html` — the whole game (HTML/CSS/JS, no build step)
+- `index.html` — the game (HTML/CSS/JS, no build step)
+- `verses.js` — the rhyme content: couplets (AABB) and quatrains (AAAA).
+  Each line must end on its rhyme word, which the game shows on beat 4.
 - `serve.js` — static server with Range support
 - `beats/` — four instrumentals (85–130 BPM) by Frequently Asked Music,
   the same tracks The Rhyme Game uses

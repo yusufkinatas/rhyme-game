@@ -40,10 +40,15 @@
     -webkit-mask-image:linear-gradient(180deg,transparent,#000 16%,#000 84%,transparent);mask-image:linear-gradient(180deg,transparent,#000 16%,#000 84%,transparent);}
   #marker{position:absolute;left:0;right:0;height:64px;top:calc(45% - 32px);background:linear-gradient(90deg,rgba(139,92,246,.10),rgba(236,72,153,.10));border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06);pointer-events:none;}
   #stack{position:absolute;left:0;right:0;top:0;will-change:transform;transition:transform .18s cubic-bezier(.2,.75,.25,1);}
-  .bar{height:64px;display:flex;align-items:center;padding:0 10px;gap:6px;opacity:.5;transition:opacity .2s;}
+  .bar{height:64px;display:flex;flex-direction:column;justify-content:center;padding:0 10px;opacity:.5;transition:opacity .2s;}
+  .cells{display:flex;align-items:center;gap:6px;}
   .bar.active{opacity:1;}
   .cell{flex:1;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600;color:var(--text);background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);}
   .cell.word{font-size:19px;font-weight:800;}
+  .cell.word.long{font-size:15px;}
+  .line{margin:3px 0 0 26px;font-size:12px;line-height:13px;color:var(--muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+  .line b{font-weight:800;}
+  .verses .cell{height:34px;}
   .barnum{width:20px;text-align:center;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;}
   #ball{position:absolute;width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,var(--ball) 55%,#d97706);box-shadow:0 0 18px rgba(251,191,36,.7);will-change:transform;left:0;top:0;}
   #countin{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:120px;font-weight:800;color:#fff;text-shadow:0 0 40px rgba(139,92,246,.8);pointer-events:none;}
@@ -75,6 +80,10 @@
       <div class="label">Uzunluk (bar)</div>
       <div class="opts" id="barOpts"></div>
     </div>
+    <div class="card">
+      <div class="label">Dizeler</div>
+      <div class="opts" id="verseOpts"></div>
+    </div>
     <button class="btn" id="startBtn">Başla ▸</button>
     <div class="credit">Ritimler: Frequently Asked Music</div>
   </div>
@@ -94,6 +103,7 @@
     </div>
     <div class="legend" id="legend"></div>
     <div class="controls">
+      <button class="btn sec" id="verseBtn">Dizeleri gizle</button>
       <button class="btn sec" id="stopBtn">■ Bitir</button>
     </div>
   </div>
@@ -117,33 +127,19 @@
 
 <audio id="track" preload="auto" crossorigin="anonymous"></audio>
 
+<script src="verses.js"></script>
 <script>
 "use strict";
 
 /* =========================================================
-   Turkish rhyme groups (kafiye aileleri)
+   Rhyme sets come from verses.js (COUPLETS, QUATRAINS).
+   The rhyme word is the last word of each line.
    ========================================================= */
-const RHYME_GROUPS = {
-  "-an":  ["zaman","duman","yalan","orman","insan","vatan","meydan","aslan","liman","derman","hayran","tufan","kervan","fidan","roman","yaman"],
-  "-ar":  ["rüzgar","bahar","pınar","damar","çınar","mezar","nazar","kenar","duvar","diyar","pazar","kumar","karar","zarar"],
-  "-ek":  ["yürek","gerçek","çiçek","dilek","emek","felek","melek","ekmek","direk","örnek","istek","petek","kelebek","bebek"],
-  "-ak":  ["toprak","yaprak","sokak","uzak","tuzak","bayrak","kaynak","dudak","şafak","durak","batak","kaçak","çırak","ırak","parmak","konak"],
-  "-et":  ["cennet","hasret","servet","kıymet","rahmet","cesaret","hikmet","zahmet","gurbet","sohbet","kuvvet","minnet","ibret","hürmet","nöbet"],
-  "-at":  ["hayat","kanat","sanat","inat","saat","murat","fırsat","rahat","hasat","sıfat"],
-  "-ir":  ["şiir","şehir","zehir","demir","fikir","nehir","sihir","esir","vezir","takdir","tedbir","tesir"],
-  "-ır":  ["sabır","kahır","hatır","satır","hazır","bakır","çadır","ağır","çakır"],
-  "-ur":  ["yağmur","huzur","gurur","çamur","çukur","kusur","uğur","hamur","mahmur","mağrur","şuur"],
-  "-üm":  ["ölüm","çözüm","bölüm","üzüm","düğüm","dönüm","sürüm","hüküm","ölçüm","gülüm"],
-  "-el":  ["güzel","temel","özel","engel","bedel","gazel","emel","ecel","evvel","tünel"],
-  "-ık":  ["açık","ışık","aşık","kırık","artık","balık","yanık","kaşık","kayık","yırtık","tanık","sanık","kaçık","atık"],
-  "-un":  ["oyun","uzun","yorgun","kurşun","vurgun","tutkun","durgun","boyun","olgun","sorun","uygun","koyun"],
-  "-ış":  ["bakış","akış","barış","yarış","alkış","çıkış","kalkış","yağış","atış","varış","satış","nakış","kamış"],
-  "-ce":  ["gece","hece","ince","nice","bilmece","eğlence","düşünce","işkence","güvence"],
-  "-aş":  ["savaş","yavaş","telaş","kumaş","arkadaş","yoldaş","sırdaş","adaş","maaş"]
-};
-const GROUP_KEYS = Object.keys(RHYME_GROUPS);
-const GROUP_COLORS = ["#8b5cf6","#ec4899","#34d399","#38bdf8","#f59e0b","#f472b6","#a3e635","#22d3ee","#fb7185","#c084fc","#fbbf24","#2dd4bf","#f97316","#60a5fa","#e879f9","#4ade80"];
-const colorForGroup = (gk) => GROUP_COLORS[GROUP_KEYS.indexOf(gk) % GROUP_COLORS.length];
+const SET_COLORS = ["#8b5cf6","#ec4899","#34d399","#38bdf8","#f59e0b","#f472b6","#a3e635","#22d3ee","#fb7185","#c084fc","#fbbf24","#2dd4bf","#f97316","#60a5fa","#e879f9","#4ade80"];
+function splitLine(line){
+  const m = line.trim().match(/^(.*?)(\S+?)([^\p{L}]*)$/u);
+  return { head:m[1], word:m[2], tail:m[3] };
+}
 
 /* =========================================================
    Beats (real instrumentals, metadata from The Rhyme Game)
@@ -164,23 +160,31 @@ const LEVELS = [
 ];
 const BARCOUNTS = [8,16,32];
 
-const state = { level: LEVELS[0], beat: BEATS[0], bars: 16, pattern: null };
+const VERSE_KEY = "kafiye.showVerses";
+function loadShowVerses(){ try{ return localStorage.getItem(VERSE_KEY) !== "0"; }catch(e){ return true; } }
+function saveShowVerses(v){ try{ localStorage.setItem(VERSE_KEY, v ? "1" : "0"); }catch(e){} }
+
+const state = { level: LEVELS[0], beat: BEATS[0], bars: 16, pattern: null, showVerses: loadShowVerses() };
 
 /* =========================================================
    Pattern builder
    ========================================================= */
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function buildPattern(totalBars, scheme){
-  const slots = new Array(totalBars).fill(null);
-  const order = shuffle(GROUP_KEYS);
-  const pools = {}; let gi = 0;
-  const nextGroup = () => order[(gi++) % order.length];
-  function takeWord(gk){ if(!pools[gk]||pools[gk].length===0) pools[gk]=shuffle(RHYME_GROUPS[gk]); return pools[gk].pop(); }
-  const step = (scheme === "AAAA") ? 4 : 2;
-  for(let b=0;b<totalBars;b+=step){
-    const gk = nextGroup();
-    for(let k=0;k<step && b+k<totalBars;k++)
-      slots[b+k] = { group:gk, word:takeWord(gk), role:k===0?"keyword":"rhyme", color:colorForGroup(gk) };
+  // AAAA uses whole quatrains. AABB uses couplets plus one random half of
+  // each quatrain (never both halves, which would read as AAAA).
+  const pool = scheme === "AAAA"
+    ? QUATRAINS
+    : COUPLETS.concat(QUATRAINS.map(q => Math.random() < .5 ? q.slice(0,2) : q.slice(2)));
+  const sets = shuffle(pool), slots = [];
+  const colorOffset = Math.floor(Math.random()*SET_COLORS.length);
+  for(let i=0; slots.length<totalBars; i++){
+    const set = sets[i % sets.length], color = SET_COLORS[(i+colorOffset) % SET_COLORS.length];
+    set.forEach((line,k)=>{
+      if(slots.length>=totalBars) return;
+      const parts = splitLine(line);
+      slots.push({ line, ...parts, role:k===0?"keyword":"rhyme", color });
+    });
   }
   return slots;
 }
@@ -204,21 +208,40 @@ const $ = (id) => document.getElementById(id);
 
 function renderStack(){
   els.stack.innerHTML = "";
+  els.stack.classList.toggle("verses", state.showVerses);
   state.pattern.forEach((slot,i)=>{
+    const visible = isVisible(slot.role,state.level.fill);
     const bar=document.createElement("div"); bar.className="bar";
-    const num=document.createElement("div"); num.className="barnum"; num.textContent=i+1; bar.appendChild(num);
+    const cells=document.createElement("div"); cells.className="cells";
+    const num=document.createElement("div"); num.className="barnum"; num.textContent=i+1; cells.appendChild(num);
     for(let c=0;c<4;c++){
       const cell=document.createElement("div"); cell.className="cell";
-      if(c===3 && slot){
+      if(c===3){
         cell.classList.add("word");
-        if(isVisible(slot.role,state.level.fill)){ cell.textContent=slot.word; cell.style.color=slot.color; }
+        if(visible){ cell.textContent=slot.word; cell.style.color=slot.color; if(slot.word.length>7) cell.classList.add("long"); }
         else { cell.textContent="· · ·"; cell.style.color="rgba(255,255,255,.25)"; }
         cell.style.borderColor=slot.color+"55"; cell.style.background=slot.color+"12";
       }
-      bar.appendChild(cell);
+      cells.appendChild(cell);
+    }
+    bar.appendChild(cells);
+    if(state.showVerses){
+      const line=document.createElement("div"); line.className="line";
+      const w=document.createElement("b");
+      w.textContent = visible ? slot.word : "____";
+      w.style.color = slot.color;
+      line.append(slot.head, w, slot.tail);
+      bar.appendChild(line);
     }
     els.stack.appendChild(bar);
   });
+  $("verseBtn").textContent = state.showVerses ? "Dizeleri gizle" : "Dizeleri göster";
+  lastBarIndex = -1; // re-apply the active bar on the next frame
+}
+function setShowVerses(v){
+  state.showVerses = v; saveShowVerses(v);
+  [...$("verseOpts").children].forEach((el,i)=> el.classList.toggle("sel", (i===0)===v));
+  if(state.pattern) renderStack();
 }
 function colCenters(){
   const stageW=els.stage.clientWidth, padL=10+20+6, padR=10, gap=6;
@@ -304,7 +327,9 @@ function loop(){
   const gb = Math.max(0, elapsedBeats);
   const col = Math.floor(gb)%4, nextCol=(col+1)%4, frac=gb-Math.floor(gb);
   const bx = centers[col] + (centers[nextCol]-centers[col])*frac;
-  const by = (markerCenter+10) - 30*Math.sin(Math.PI*frac);
+  const by = state.showVerses
+    ? (markerCenter-2) - 22*Math.sin(Math.PI*frac)
+    : (markerCenter+10) - 30*Math.sin(Math.PI*frac);
   els.ball.style.transform = `translate(${bx-15}px, ${by-15}px)`;
 }
 
@@ -349,6 +374,11 @@ function buildOptions(){
   const bao=$("barOpts");
   BARCOUNTS.forEach(n=>{ const el=document.createElement("div"); el.className="opt"; el.textContent=n;
     el.onclick=()=>{ state.bars=n; markSel(bao,el); }; bao.appendChild(el); if(n===state.bars) el.classList.add("sel"); });
+
+  const vo=$("verseOpts");
+  [["Göster",true,"Dizeler + kelime"],["Gizle",false,"Sadece kelime"]].forEach(([label,v,desc])=>{
+    const el=document.createElement("div"); el.className="opt"; el.innerHTML=`${label}<small>${desc}</small>`;
+    el.onclick=()=> setShowVerses(v); vo.appendChild(el); if(v===state.showVerses) el.classList.add("sel"); });
 }
 
 window.addEventListener("DOMContentLoaded", ()=>{
@@ -359,6 +389,7 @@ window.addEventListener("DOMContentLoaded", ()=>{
 
   $("startBtn").onclick = ()=>{ state.pattern = buildPattern(state.bars, state.level.scheme); startGame(); };
   $("stopBtn").onclick  = ()=> endGame(false);
+  $("verseBtn").onclick = ()=> setShowVerses(!state.showVerses);
   $("againSame").onclick= ()=> startGame();
   $("againNew").onclick = ()=>{ state.pattern = buildPattern(state.bars, state.level.scheme); startGame(); };
   $("backBtn").onclick  = ()=>{ try{track.pause();}catch(e){} show("setupScreen"); };
